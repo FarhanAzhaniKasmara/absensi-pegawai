@@ -3,29 +3,226 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aplikasi Absensi Pegawai</title>
-  <!-- Masukkan link CSS Bootstrap / FontAwesome Anda di sini -->
+  <title>E-Absensi Pegawai</title>
+  
+  <!-- Bootstrap CSS & FontAwesome -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body { background-color: #f8f9fa; }
+    .bg-navy { background-color: #0d1b2a; }
+    .text-navy { color: #0d1b2a; }
+    .btn-navy { background-color: #0d1b2a; color: white; }
+    .btn-navy:hover { background-color: #1b263b; color: white; }
+  </style>
 </head>
-  <body>
-    <script>
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLdsIR_OaBbOrCdQ-K5FjmWf79xrpJ0QN-c8rA67-e-yxWXy0_2D4XlwuDWzCJsAFpPA/exec";
-      
-      function submitAbsensiToGAS(payloadData) {
-        fetch(SCRIPT_URL, {
-          method: "POST",
-          body: JSON.stringify(payloadData)
-        })
-        .then(res => res.json())
-        .then(response => {
-          if (response.success) {
-            alert("Absensi berhasil disimpan!");
-          } else {
-            alert("Gagal: " + response.message);
-          }
-        })
-        .catch(err => alert("Error: " + err));
-      }
-    </script>
-  </body>
-</html>
+<body>
 
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-dark bg-navy shadow-sm mb-4">
+    <div class="container-fluid px-4">
+      <span class="navbar-brand mb-0 h1"><i class="fa-solid fa-building-user me-2"></i>E-Absensi Pegawai</span>
+      <span class="text-white small" id="clock-display"></span>
+    </div>
+  </nav>
+
+  <!-- CONTAINER UTAMA -->
+  <div class="container py-2">
+    <div class="row g-4 justify-content-center">
+      
+      <!-- KARTU ABSENSI -->
+      <div class="col-md-7 col-lg-6">
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-navy text-white fw-bold">
+            <i class="fa-solid fa-camera me-2"></i>Presensi Online
+          </div>
+          <div class="card-body text-center p-4">
+            
+            <!-- Area Preview Hasil Foto -->
+            <div class="webcam-container mb-3 position-relative bg-dark rounded overflow-hidden d-flex align-items-center justify-content-center" style="min-height: 250px;">
+              <i class="fa-solid fa-user fa-5x text-secondary" id="cam-placeholder"></i>
+              <img id="photo-preview" class="w-100 h-100 object-fit-cover d-none position-absolute top-0 start-0" />
+            </div>
+
+            <!-- Tombol Buka Kamera -->
+            <div class="d-flex justify-content-center gap-2 mb-3">
+              <button type="button" class="btn btn-navy btn-sm px-4 py-2" onclick="openCameraModal()">
+                <i class="fa-solid fa-camera me-1"></i> Ambil Foto Absen
+              </button>
+            </div>
+
+            <!-- Indicator GPS -->
+            <div id="gps-info" class="badge bg-light text-dark border p-2 mb-3 w-100">
+              <i class="fa-solid fa-location-dot text-danger me-1"></i> Mencari Lokasi GPS...
+            </div>
+
+            <!-- Tombol Submit -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+              <button id="btn-clockin" class="btn btn-success flex-fill py-2" onclick="processAbsensi('Clock In')" disabled>
+                <i class="fa-solid fa-right-to-bracket me-1"></i> Clock In (Masuk)
+              </button>
+              <button id="btn-clockout" class="btn btn-danger flex-fill py-2" onclick="processAbsensi('Clock Out')" disabled>
+                <i class="fa-solid fa-right-from-bracket me-1"></i> Clock Out (Pulang)
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL POPUP KAMERA -->
+  <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-navy text-white">
+          <h5 class="modal-title fs-6"><i class="fa-solid fa-camera me-2"></i>Kamera Presensi</h5>
+          <button type="button" class="btn-close btn-close-white" onclick="closeCameraModal()"></button>
+        </div>
+        <div class="modal-body text-center bg-dark p-0 overflow-hidden" style="min-height: 300px;">
+          <video id="webcam-video" autoplay playsinline style="width: 100%; max-height: 360px; object-fit: cover;"></video>
+          <canvas id="webcam-canvas" class="d-none"></canvas>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeCameraModal()">Batal</button>
+          <button type="button" class="btn btn-success btn-sm px-4" onclick="takeSnap()">
+            <i class="fa-solid fa-circle-dot me-1"></i> Jepret Foto
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS BOOTSTRAP -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- JAVASCRIPT LOGIKA SCRIPT -->
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLdsIR_OaBbOrCdQ-K5FjmWf79xrpJ0QN-c8rA67-e-yxWXy0_2D4XlwuDWzCJsAFpPA/exec";
+    
+    let mediaStream = null;
+    let capturedImageBase64 = null;
+    let userLocation = null;
+
+    // Jam Realtime
+    setInterval(() => {
+      document.getElementById('clock-display').innerText = new Date().toLocaleTimeString('id-ID') + ' WIB';
+    }, 1000);
+
+    // Inisialisasi GPS saat halaman dibuka
+    window.onload = function() {
+      initLocation();
+    };
+
+    function initLocation() {
+      const gpsInfo = document.getElementById('gps-info');
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userLocation = pos.coords.latitude + ',' + pos.coords.longitude;
+            gpsInfo.className = "badge bg-success-subtle text-success border border-success p-2 mb-3 w-100";
+            gpsInfo.innerHTML = '<i class="fa-solid fa-location-dot me-1"></i> GPS Terkunci (' + userLocation + ')';
+            validateAbsenButtons();
+          },
+          (err) => {
+            gpsInfo.className = "badge bg-danger-subtle text-danger border border-danger p-2 mb-3 w-100";
+            gpsInfo.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Gagal Mengunci GPS';
+          }
+        );
+      }
+    }
+
+    async function openCameraModal() {
+      const modalEl = document.getElementById('cameraModal');
+      const cameraModal = new bootstrap.Modal(modalEl);
+      cameraModal.show();
+
+      const video = document.getElementById('webcam-video');
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        video.srcObject = mediaStream;
+      } catch (err) {
+        alert("Gagal membuka kamera: " + err.message);
+        closeCameraModal();
+      }
+    }
+
+    function takeSnap() {
+      const video = document.getElementById('webcam-video');
+      const canvas = document.getElementById('webcam-canvas');
+      const context = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      capturedImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+      const preview = document.getElementById('photo-preview');
+      const placeholder = document.getElementById('cam-placeholder');
+      preview.src = capturedImageBase64;
+      preview.classList.remove('d-none');
+      if (placeholder) placeholder.classList.add('d-none');
+
+      closeCameraModal();
+      validateAbsenButtons();
+    }
+
+    function closeCameraModal() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      const modalEl = document.getElementById('cameraModal');
+      const modalInstance = bootstrap.Modal.getInstance(modalEl);
+      if (modalInstance) modalInstance.hide();
+    }
+
+    function validateAbsenButtons() {
+      if (capturedImageBase64 && userLocation) {
+        document.getElementById('btn-clockin').disabled = false;
+        document.getElementById('btn-clockout').disabled = false;
+      }
+    }
+
+    function processAbsensi(tipe) {
+      if (!capturedImageBase64 || !userLocation) {
+        alert("Harap ambil foto dan pastikan GPS aktif!");
+        return;
+      }
+
+      const payload = {
+        action: tipe === 'Clock In' ? 'clockIn' : 'clockOut',
+        image: capturedImageBase64,
+        location: userLocation
+      };
+
+      document.getElementById('btn-clockin').disabled = true;
+      document.getElementById('btn-clockout').disabled = true;
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          alert("Absensi " + tipe + " Berhasil!");
+        } else {
+          alert("Gagal: " + res.message);
+        }
+      })
+      .catch(err => alert("Terjadi kesalahan: " + err))
+      .finally(() => {
+        validateAbsenButtons();
+      });
+    }
+  </script>
+</body>
+</html>
