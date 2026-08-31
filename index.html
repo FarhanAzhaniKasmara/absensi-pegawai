@@ -1,17 +1,31 @@
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLdsIR_OaBbOrCdQ-K5FjmWf79xrpJ0QN-c8rA67-e-yxWXy0_2D4XlwuDWzCJsAFpPA/exec";
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Absensi Pegawai</title>
+  <!-- Masukkan link CSS Bootstrap / FontAwesome Anda di sini -->
+</head>
+  <body>
+    <script>
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLdsIR_OaBbOrCdQ-K5FjmWf79xrpJ0QN-c8rA67-e-yxWXy0_2D4XlwuDWzCJsAFpPA/exec";
+      
+      function submitAbsensiToGAS(payloadData) {
+        fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(payloadData)
+        })
+        .then(res => res.json())
+        .then(response => {
+          if (response.success) {
+            alert("Absensi berhasil disimpan!");
+          } else {
+            alert("Gagal: " + response.message);
+          }
+        })
+        .catch(err => alert("Error: " + err));
+      }
+    </script>
+  </body>
+</html>
 
-function submitAbsensiToGAS(payloadData) {
-  fetch(SCRIPT_URL, {
-    method: "POST",
-    body: JSON.stringify(payloadData)
-  })
-  .then(res => res.json())
-  .then(response => {
-    if (response.success) {
-      alert("Absensi berhasil disimpan!");
-    } else {
-      alert("Gagal: " + response.message);
-    }
-  })
-  .catch(err => alert("Error: " + err));
-}
